@@ -14,7 +14,7 @@ def gen_ran_poly(variables, degree, terms, coeff_range):
     return poly
 
 num_vars = rand.randint(1, 5)
-var_symbols = sympy.symbols(f'x1:{num_vars + 1}')  # x1, x2, ..., xn
+var_symbols = sympy.symbols(f'x1:{num_vars + 1}')  
 
 polys = [gen_ran_poly(var_symbols, degree=2, terms=3, coeff_range=(-10, 10)) for _ in range(100)]
 
