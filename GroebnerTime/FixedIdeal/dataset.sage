@@ -41,7 +41,7 @@ def test_case(A, time_limit):
 def main():
     s = timer()
     totaltime = 0
-    TIME_LIMIT = 1000
+    TIME_LIMIT = 600
     NUM_SAMPLES = 200
     MATRIX_ENTRY_SIZE = 100
     with open('data.txt', 'w') as f:
@@ -56,8 +56,7 @@ def main():
                 print('The previous computation timed out.')
             else:
                 print(f'The previous computation took {result} seconds.')
-            print(timer() - s)
-            print()
+            print(f'ETA: {totaltime/(i+1) * (199 - i)} seconds')
             to_write = ""
             for B in A:
                 for j in B:
