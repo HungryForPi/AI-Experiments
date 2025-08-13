@@ -1,4 +1,6 @@
-import random as rand
+#!/usr/bin/env sage
+
+import sys
 from timeit import default_timer as timer
 import multiprocessing as mp
 
@@ -38,29 +40,11 @@ def test_case(A, time_limit):
 
     return time.value
 
-def gen_dataset(TIME_LIMIT, NUM_SAMPLES, MATRIX_ENTRY_SIZE):
-    # TODO: mp's array datatype
-    for i in range(NUM_SAMPLES):
-        A = matrix(n, [rand.randint(1, MATRIX_ENTRY_SIZE) for _ in range(n*n)])
-        result = test_case(A, TIME_LIMIT)
-        totaltime += result
-        print(f'run number {i}: The current runtime is {totaltime} seconds.', end=' ')
-        if result == TIME_LIMIT:
-            print('The previous computation timed out.')
-        else:
-            print(f'The previous computation took {result} seconds.')
-        print(f'ETA: {totaltime/(i+1) * (NUM_SAMPLES - i)} seconds')
-    return
-
 def main():
-    s = timer()
-    totaltime = 0
-    TIME_LIMIT = 600
-    NUM_SAMPLES = 200
-    MATRIX_ENTRY_SIZE = 100
-
-    
-    print(f'The total runtime was {totaltime} seconds.')
+    A = [int(sys.argv[i]) for i in range(1,n*n+1)]
+    TIME_LIMIT = int(sys.argv[n*n+1])
+    result = test_case(A, TIME_LIMIT)
+    return result
 
 if __name__ == "__main__":
-    main()
+    print(main())
