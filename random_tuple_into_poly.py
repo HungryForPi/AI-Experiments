@@ -25,8 +25,6 @@ def tuple_monomial_list(tuple_list):
     return [tuple_monomial_transformer(t) for t in tuple_list]
 
 def group_tuple(tuple_list, num_groups):
-    '''split tuple into n even groups (including the zero tuples which prevents
-    the problem of every ideal having the same amount of generators)'''
     group_size= len(tuple_list) // num_groups
     return [tuple_list[i*group_size:(i+1)*group_size] for i in range(num_groups)]
 
