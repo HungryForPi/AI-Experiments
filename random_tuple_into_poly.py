@@ -43,10 +43,10 @@ def grouped_tuples_to_polynomials(grouped_tuples):
 tuples=generate_tuples(tuple_length=6,
                        coeff_range=(-10,11),
                        deg_range=(0,11),
-                       amount=30)
+                       amount=1800)
 
 grouped_tuples=group_tuple(tuple_list=tuples,
-                           num_groups=5)
+                           num_groups=180)
 
 polynomials= grouped_tuples_to_polynomials(grouped_tuples)
 
