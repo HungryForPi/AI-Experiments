@@ -38,29 +38,39 @@ def test_case(A, time_limit):
 
     return time.value
 
-def gen_dataset(TIME_LIMIT, NUM_SAMPLES, MATRIX_ENTRY_SIZE):
-    # TODO: mp's array datatype
-    for i in range(NUM_SAMPLES):
-        A = matrix(n, [rand.randint(1, MATRIX_ENTRY_SIZE) for _ in range(n*n)])
-        result = test_case(A, TIME_LIMIT)
-        totaltime += result
-        print(f'run number {i}: The current runtime is {totaltime} seconds.', end=' ')
-        if result == TIME_LIMIT:
-            print('The previous computation timed out.')
-        else:
-            print(f'The previous computation took {result} seconds.')
-        print(f'ETA: {totaltime/(i+1) * (NUM_SAMPLES - i)} seconds')
-    return
+def gen_dataset(TIME_LIMIT, NUM_SAMPLES, MATRIX_ENTRY_SIZE, processnum):
+    with open('data.txt', 'a') as f:
+        for i in range(NUM_SAMPLES):
+            A = matrix(n, [rand.randint(1, MATRIX_ENTRY_SIZE) for _ in range(n*n)])
+            result = test_case(A, TIME_LIMIT)
+            # totaltime += result
+            # print(f'run number {i}: The current runtime is {totaltime} seconds.', end=' ')
+            # if result == TIME_LIMIT:
+            #     print('The previous computation timed out.')
+            # else:
+            #     print(f'The previous computation took {result} seconds.')
+            # print(f'ETA: {totaltime/(i+1) * (NUM_SAMPLES - i)} seconds')
+
+            to_write = ""
+            for B in A:
+                for j in B:
+                    to_write += str(j) + " "
+            to_write += str(result)
+            to_write += "\n"
+            f.write(to_write)
+            print(f"process {processnum} has finished matrix {i+1}")
 
 def main():
     s = timer()
-    totaltime = 0
     TIME_LIMIT = 600
-    NUM_SAMPLES = 200
+    NUM_SAMPLES = 70
     MATRIX_ENTRY_SIZE = 100
 
-    
-    print(f'The total runtime was {totaltime} seconds.')
+    processes = [mp.Process(target=gen_dataset,
+                            args=(TIME_LIMIT, NUM_SAMPLES,MATRIX_ENTRY_SIZE, _, ))
+                 for _ in range(10)]
+    for p in processes:
+        p.start()
 
 if __name__ == "__main__":
     main()
