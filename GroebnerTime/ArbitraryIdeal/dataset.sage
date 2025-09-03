@@ -6,25 +6,33 @@ import time
 n = 3
 var(['x' + str(i) for i in range(n)])
 
-def gb_stopwatch(F, op_limit, t):
+def gb_stopwatch(F, coef_bound):
+    t = time.time()
     G = set(F.gens())
     B = set((g1, g2) for g1 in G for g2 in G if g1 != g2)
 
-    divisions = 0
+    m = max([p.number_of_terms() for p in G]) # max or sum?
 
-    while divisions < op_limit and B:
+    maxcoef = 0
+
+    while maxcoef < coef_bound and B:
         g1, g2 = select(B)
         B.remove((g1, g2))
+        maxcoef = max([max([max(abs(x.numerator()),abs(x.denominator())) for x in p.coefficients()]) for p in G])
+        #print(maxcoef)
         h = spol(g1, g2).reduce(G)
+
         if h != 0:
             B = B.union((g, h) for g in G)
             G.add(h)
-        divisions += 1
         #print(G, divisions)
-        print(time.time()-t)
-        print([p.number_of_terms() for p in G])
-        print([p.degrees() for p in G])
-    return divisions
+
+        #print(f"numterms {[p.number_of_terms() for p in G]}")
+        #print(f"degs {[p.degrees() for p in G]}")
+    print(f"{time.time()-t} seconds elapsed")
+    #print(f"{m} max num terms")
+    return maxcoef # largest coefficient seems like a decent-ish predictor idk
+                   # we can track more info later
 
 def gen_dataset(OP_LIMIT, NUM_IDEALS, ORDERING, MAX_IDEAL_SIZE, MAX_POLY_TERMS,
                 MIN_COEF, MAX_COEF, MAX_DEG):
@@ -43,59 +51,58 @@ def gen_dataset(OP_LIMIT, NUM_IDEALS, ORDERING, MAX_IDEAL_SIZE, MAX_POLY_TERMS,
     elif ORDERING == 6:
         R = PolynomialRing(QQ, 'x', n, order='degneglex')
 
-    rand.seed(int(0)) # needed to ensure that each ideal is used with each ordering
+    #rand.seed(int(0)) # needed to ensure that each ideal is used with each ordering
 
     t = time.time()
     with open('data.txt', 'a') as f:
         for _ in range(NUM_IDEALS):
             numpolys = rand.randint(1,MAX_IDEAL_SIZE)
-        polyarrays = []
-        polys = []
-        for i in range(numpolys):
-            curpol = 0
-            curpolarray = []
-            numterms = rand.randint(1,MAX_POLY_TERMS)
-            for j in range(numterms):
-                coef = rand.randint(MIN_COEF, MAX_COEF)
-                deg = [rand.randint(0,MAX_DEG) for __ in range(n)]
-                curpolarray.append([coef, deg])
-                term = coef
-                for i in range(n):
-                    term *= R.gens()[i]**deg[i]
-                curpol += term
-            if curpol != 0: polys.append(curpol)
-            polyarrays.append(curpolarray)
-        for i in range(5-numpolys):
-            break
-        # TODO append array representing zero array to polys
-            # can be done post dataset generation
+            polyarrays = []
+            polys = []
+            for i in range(numpolys):
+                curpol = 0
+                curpolarray = []
+                numterms = rand.randint(1,MAX_POLY_TERMS)
+                for j in range(numterms):
+                    coef = rand.randint(MIN_COEF, MAX_COEF)
+                    deg = [rand.randint(0,MAX_DEG) for __ in range(n)]
+                    curpolarray.append([coef, deg])
+                    term = coef
+                    for i in range(n):
+                        term *= R.gens()[i]**deg[i]
+                    curpol += term
+                if curpol != 0: polys.append(curpol)
+                polyarrays.append(curpolarray)
+            for i in range(5-numpolys):
+                break
+            # TODO append array representing zero array to polys
+                # can be done post dataset generation
 
-        I = R.ideal(polys)
-        result = gb_stopwatch(I, OP_LIMIT, t)
+            I = R.ideal(polys)
+            result = gb_stopwatch(I, OP_LIMIT)
 
-        for poly in polys:
-            print(poly)
-        print(polyarrays)
-        print(f"{result} polys computed")
-        # totaltime += result
-        # print(f'run number {i}: The current runtime is {totaltime} seconds.', end=' ')
-        # if result == TIME_LIMIT:
-        #     print('The previous computation timed out.')
-        # else:
-        #     print(f'The previous computation took {result} seconds.')
-        # print(f'ETA: {totaltime/(i+1) * (NUM_SAMPLES - i)} seconds')
+            # for poly in polys:
+            #     print(poly)
+            print(polyarrays)
+            # totaltime += result
+            # print(f'run number {i}: The current runtime is {totaltime} seconds.', end=' ')
+            # if result == TIME_LIMIT:
+            #     print('The previous computation timed out.')
+            # else:
+            #     print(f'The previous computation took {result} seconds.')
+            # print(f'ETA: {totaltime/(i+1) * (NUM_SAMPLES - i)} seconds')
 
-        # to_write = ""
-        # for B in A:
-        #     for j in B:
-        #         to_write += str(j) + " "
-        # to_write += str(result)
-        # to_write += "\n"
-        # f.write(to_write)
-    print(f"{time.time()-t} seconds elapsed")
+            # to_write = ""
+            # for B in A:
+            #     for j in B:
+            #         to_write += str(j) + " "
+            # to_write += str(result)
+            # to_write += "\n"
+            # f.write(to_write)
+    print(f"{time.time()-t} seconds elapsed for the whole thing")
 
 def main():
-    OP_LIMIT = 1000
+    OP_LIMIT = 10**30
     NUM_IDEALS = 10
     MAX_DEG = 10
     MAX_IDEAL_SIZE = 5
@@ -103,8 +110,8 @@ def main():
     MIN_COEF = -10
     MAX_POLY_TERMS = 10
 
-    gen_dataset(28,
-                1,
+    gen_dataset(OP_LIMIT,
+                10,
                 0,
                 MAX_IDEAL_SIZE,
                 MAX_POLY_TERMS,
