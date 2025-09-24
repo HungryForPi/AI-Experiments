@@ -7,14 +7,15 @@ import os
 n = 3
 var(['x' + str(i) for i in range(n)])
 
-def gb_stopwatch(F, term_bound, ans):
+def gb_stopwatch(F, ans):
     t = time.time()
     G = set(F.gens())
     B = set((g1, g2) for g1 in G for g2 in G if g1 != g2)
 
     m = max([p.number_of_terms() for p in G]) # max or sum?
+    divisions = 0
 
-    while m < term_bound and B:
+    while B:
         g1, g2 = select(B)
         B.remove((g1, g2))
         #print(maxcoef)
@@ -25,17 +26,21 @@ def gb_stopwatch(F, term_bound, ans):
             G.add(h)
         #print(G, divisions)
 
-        m = max([p.number_of_terms() for p in G]) # max or sum?
+        m = max(m, max([p.number_of_terms() for p in G]))
+        divisions += 1
         #print(f"numterms {[p.number_of_terms() for p in G]}")
         #print(f"degs {[p.degrees() for p in G]}")
-    print(f"{time.time()-t} seconds elapsed")
+    elapsed = time.time()-t
+    print(f"{elapsed} seconds elapsed")
     #print(f"{m} max num terms")
-    ans.value = m
+    ans[0] = m
+    ans[1] = divisions # divisions
+    ans[2] = elapsed # time
     return
     # largest coefficient seems like a decent-ish predictor idk
                    # we can track more info later
 
-def gen_dataset(OP_LIMIT, NUM_IDEALS, ORDERING, MAX_IDEAL_SIZE, MAX_POLY_TERMS,
+def gen_dataset(NUM_IDEALS, ORDERING, MAX_IDEAL_SIZE, MAX_POLY_TERMS,
                 MIN_COEF, MAX_COEF, MAX_DEG, TIME_LIMIT):
     st = time.time()
     if ORDERING == 0:
@@ -57,7 +62,8 @@ def gen_dataset(OP_LIMIT, NUM_IDEALS, ORDERING, MAX_IDEAL_SIZE, MAX_POLY_TERMS,
 
     for _ in range(NUM_IDEALS):
         t = time.time()
-        with open('data.txt', 'a') as f:
+        with open('data2.txt', 'a') as f:
+            # generate random polynomials
             numpolys = rand.randint(1,MAX_IDEAL_SIZE)
             polyarrays = []
             polys = []
@@ -77,12 +83,10 @@ def gen_dataset(OP_LIMIT, NUM_IDEALS, ORDERING, MAX_IDEAL_SIZE, MAX_POLY_TERMS,
                 polyarrays.append(curpolarray)
             for i in range(5-numpolys):
                 break
-            # TODO append array representing zero array to polys
-                # can be done post dataset generation
 
             I = R.ideal(polys)
-            ans = mp.Value('i',0)
-            pr = mp.Process(target=gb_stopwatch, args=(I,OP_LIMIT,ans))
+            ans = mp.Array('d', int(10)) # TODO replace 10
+            pr = mp.Process(target=gb_stopwatch, args=(I,ans))
             pr.start()
             result = 0
             print(pr.pid)
@@ -92,11 +96,13 @@ def gen_dataset(OP_LIMIT, NUM_IDEALS, ORDERING, MAX_IDEAL_SIZE, MAX_POLY_TERMS,
                 os.kill(pr.pid, int(9))
                 print("cooked")
                 print(f"----{_}")
-                result = -1
+                result = "-1 -1 -1" # these guys should be tossed anyway imo
             else:
-                print(ans.value)
+                a = [int(ans[0]), int(ans[1])] + [ans[j+2] for j in range(len(ans)-2)]
+                print(a)
                 print(f"----{_}")
-                result = ans.value
+                a_str = f"{str(a[0])} {str(a[1])} {str(a[2])}"
+                result = a_str
 
             # for poly in polys:
             #     print(poly)
@@ -119,7 +125,6 @@ def gen_dataset(OP_LIMIT, NUM_IDEALS, ORDERING, MAX_IDEAL_SIZE, MAX_POLY_TERMS,
     print(f"{time.time()-st} seconds elapsed for the whole thing")
 
 def main():
-    OP_LIMIT = 800
     NUM_IDEALS = 100
     MAX_DEG = 10
     MAX_IDEAL_SIZE = 5
@@ -138,8 +143,7 @@ def main():
     #             MAX_DEG)
 
     processes = [mp.Process(target=gen_dataset,
-                            args=(OP_LIMIT,
-                                  NUM_IDEALS,
+                            args=(NUM_IDEALS,
                                   _,
                                   MAX_IDEAL_SIZE,
                                   MAX_POLY_TERMS,
