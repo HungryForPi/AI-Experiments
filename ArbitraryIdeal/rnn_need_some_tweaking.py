@@ -3,11 +3,18 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import ast
+import random
+import numpy as np
 
-# DATASET 
+#seeds for reproducibility
+random.seed(12)
+np.random.seed(12)
+torch.manual_seed(12)
+
+# Reformatting the dataset so it is readable by the model
 class GroebnerDatasetTuples(Dataset):
-    def __init__(self, filepath=r"C:\Users\HP\PycharmProjects\PythonProject4\gbasisdata\data_tuples.txt",
-                 num_generators=6, num_vars=6, max_terms=10):
+    def __init__(self, filepath=r"C:\Users\HP\PycharmProjects\PythonProject4\big_one_combined",
+                 num_generators=6, num_vars=3, max_terms=10):
         self.data = []
         self.output = []
         self.num_generators = num_generators
@@ -16,14 +23,14 @@ class GroebnerDatasetTuples(Dataset):
 
         with open(filepath, "r") as f:
             lines = f.read().splitlines()
-
+# Ordering|Ideal|Output(s-poly divisions)
         for line in lines:
             ordering_str, ideal_str, output_str = line.split("|")
 
             # Ordering (stored as tuple like (2))
-            ordering = int(ordering_str.strip("()"))
+            ordering = int(ordering_str.strip().strip("()"))
 
-            # semicolon separates polynomials, commas separate monomials
+            # semicolon separates polynomials (generators), commas separate monomials
             generators = []
             for poly_str in ideal_str.split(";"):
                 poly_str = "[" + poly_str + "]"   # wrap in [] to turn in python list
@@ -36,7 +43,7 @@ class GroebnerDatasetTuples(Dataset):
                     g[i, 1:] = torch.tensor(exps)
                 generators.append(g)
 
-            # Pad missing generating like i said at the beginning of the our meeting
+            # Pad missing generators with zeros
             while len(generators) < num_generators:
                 generators.append(torch.zeros(max_terms, num_vars + 1))
 
@@ -55,34 +62,42 @@ class GroebnerDatasetTuples(Dataset):
         return generators, ordering, y
 
 
-# RNN
+# RNN(using GRU) and FEEDFORWARD
 class GroebnerRNN(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size=1, num_generators=6):
+    def __init__(self, input_size, hidden_size, output_size=1, num_generators=5):
         super(GroebnerRNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_generators = num_generators
 
-        self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
+        self.rnn = nn.GRU(input_size, hidden_size, batch_first=True) #no particular reason why I am using GRU, it's just a popular one
+                                                                     #input_size is just num_var + 1 to accommodate the coeff
 
-        # Summary: hidden_size * num_generators + 1 (for ordering)
+        # Summary: hidden_size * num_generators + 1 (+1 to accommodate ordering)
         self.feedforward = nn.Sequential(
             nn.Linear(hidden_size * num_generators + 1, 128),
-            nn.Tanh(),
-            nn.Linear(128, output_size),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, output_size)
         )
 
     def forward(self, generators, ordering):
         """
+        B= batch size
         generators: [B, num_generators, max_terms, input_size]
-        ordering:   [B]
+        ordering:   [B] # one ordering value per example in the batch
         """
         batch_size = generators.size(0)
         summaries = []
 
         for i in range(self.num_generators):
-            g = generators[:, i, :, :]               # [B, max_terms, input_size]
-            _, hidden_n = self.rnn(g)                # hidden_n: [1, B, hidden_size]
-            hidden_n = hidden_n.squeeze(0)           # [B, hidden_size]
+            g = generators[:, i, :, :]               # [B, num_gen, max_terms, input_size]
+            _, hidden_n = self.rnn(g)                # hidden_n: [1, B, hidden_size] (_ is the sequence of hidden state after every monomial, hidden_n is the final hidden state (OF THE ith GENERATOR)
+            hidden_n = hidden_n.squeeze(0)           # [B, hidden_size], squeeze to get rid of the extra dimension
             summaries.append(hidden_n)
 
         all_summary = torch.cat(summaries, dim=1)    # [B, hidden_size * num_generators]
@@ -92,29 +107,53 @@ class GroebnerRNN(nn.Module):
         return self.feedforward(total_input)
 
 
-# TRAINING
+from torch.utils.data import random_split
+
+#dataset
 dataset = GroebnerDatasetTuples(
-    filepath=r"C:\Users\HP\PycharmProjects\PythonProject4\gbasisdata\data_tuples.txt",   #replace with the dataset, i just put a sample one to see if the code works
-    num_generators=6,
-    num_vars=6,
+    filepath=r"C:\Users\HP\PycharmProjects\PythonProject4\big_one_combined",
+    num_generators=5,
+    num_vars=3,
     max_terms=10
 )
 
-loader = DataLoader(dataset, batch_size=30, shuffle=True)
+# Split 80/20 into train and test
+train_size = int(0.8 * len(dataset))
+test_size = len(dataset) - train_size
+train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 
-model = GroebnerRNN(input_size=7, hidden_size=16, output_size=1, num_generators=6)
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-loss_fn = nn.MSELoss()
+# DataLoaders
+train_loader = DataLoader(train_dataset, batch_size=30, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=30, shuffle=False)
 
-epochs = 1000
+#Model
+model = GroebnerRNN(input_size=4, hidden_size=24, output_size=1, num_generators=5)
+first_weight = list(model.parameters())[0][0][:5]  #just to see if the random seed is working
+print("Seed check (Machine 1) - first weights:", first_weight.detach().numpy())
+optimizer = torch.optim.Adam(model.parameters(), lr=.001)  #Using Adam but can use SGD to yield similar results
+loss_fn = nn.MSELoss() #Mean Squared Error
+
+#Training (just the usual training algorithm)
+epochs = 3000 #number of times the model runs the dataset
 for epoch in range(epochs):
+    model.train()
     total_loss = 0
-    for generators, ordering, y in loader:
+    for generators, ordering, y in train_loader:
         optimizer.zero_grad()
         y_pred = model(generators, ordering)
         loss = loss_fn(y_pred, y)
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
-    if (epoch +1) % 100 == 0:
-        print(f"Epoch {epoch+1}/{epochs} | Loss: {total_loss / len(loader):.4f}")
+
+#print out the train and test loss
+    if (epoch + 1) % 100 == 0:
+        model.eval()
+        test_loss = 0
+        with torch.no_grad():
+            for generators, ordering, y in test_loader:
+                y_pred = model(generators, ordering)
+                test_loss += loss_fn(y_pred, y).item()
+
+        print(f"Epoch {epoch+1}/{epochs} | Train Loss: {total_loss / len(train_loader):.4f} "
+              f"| Test Loss: {test_loss / len(test_loader):.4f}")
