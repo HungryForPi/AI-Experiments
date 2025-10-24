@@ -28,35 +28,27 @@ def gb_stopwatch(F, ans):
 
         m = max(m, max([p.number_of_terms() for p in G]))
         divisions += 1
+        ans[0] = m
+        ans[1] = divisions
         #print(f"numterms {[p.number_of_terms() for p in G]}")
         #print(f"degs {[p.degrees() for p in G]}")
     elapsed = time.time()-t
     print(f"{elapsed} seconds elapsed")
     #print(f"{m} max num terms")
-    ans[0] = m
-    ans[1] = divisions # divisions
     ans[2] = elapsed # time
     return
     # largest coefficient seems like a decent-ish predictor idk
                    # we can track more info later
 
+def random_polys(N): # generates list of N random polys
+    #TODO implement
+    pass
+
 def gen_dataset(NUM_IDEALS, ORDERING, MAX_IDEAL_SIZE, MAX_POLY_TERMS,
                 MIN_COEF, MAX_COEF, MAX_DEG, TIME_LIMIT):
     st = time.time()
-    if ORDERING == 0:
-        R = PolynomialRing(QQ, 'x', n, order='lex')
-    elif ORDERING == 1:
-        R = PolynomialRing(QQ, 'x', n, order='degrevlex')
-    elif ORDERING == 2:
-        R = PolynomialRing(QQ, 'x', n, order='deglex')
-    elif ORDERING == 3:
-        R = PolynomialRing(QQ, 'x', n, order='neglex')
-    elif ORDERING == 4:
-        R = PolynomialRing(QQ, 'x', n, order='negdeglex')
-    elif ORDERING == 5:
-        R = PolynomialRing(QQ, 'x', n, order='negdegrevlex')
-    elif ORDERING == 6:
-        R = PolynomialRing(QQ, 'x', n, order='degneglex')
+    ORDERINGS = ['lex', 'degrevlex', 'deglex', 'neglex', 'negdeglex', 'negdegrevlex', 'degneglex']
+    R = PolynomialRing(QQ, 'x', n, order=ORDERINGS[ORDERING])
 
     #rand.seed(int(0)) # needed to ensure that each ideal is used with each ordering
 
@@ -103,6 +95,7 @@ def gen_dataset(NUM_IDEALS, ORDERING, MAX_IDEAL_SIZE, MAX_POLY_TERMS,
                 print(f"----{_}")
                 a_str = f"{str(a[0])} {str(a[1])} {str(a[2])}"
                 result = a_str
+            # TODO edit result
 
             # for poly in polys:
             #     print(poly)
@@ -152,7 +145,7 @@ def main():
                                   MAX_DEG,
                                   TIME_LIMIT)
                             )
-                 for _ in range(7)]
+                 for _ in range(1)]
     for p in processes:
         p.start()
 
