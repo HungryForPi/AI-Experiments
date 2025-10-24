@@ -3,6 +3,7 @@ import multiprocessing as mp
 from sage.rings.polynomial.toy_buchberger import *
 import time
 import os
+import gc
 
 n = 3
 var(['x' + str(i) for i in range(n)])
@@ -96,6 +97,7 @@ def gen_dataset(NUM_IDEALS, ORDERING, MAX_IDEAL_SIZE, MAX_POLY_TERMS,
                 a_str = f"{str(a[0])} {str(a[1])} {str(a[2])}"
                 result = a_str
             # TODO edit result
+            gc.collect()
 
             # for poly in polys:
             #     print(poly)
